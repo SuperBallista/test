@@ -1,46 +1,61 @@
-var createError = require('http-errors');
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
-const nunjucks = require('nunjucks');
+const express = require('express');
+const path = require('path');
+const app = express();
+const port = 3000;
+const mysql = require('mysql2');
 
-var indexRouter = require('./routes/index');
-// var usersRouter = require('./routes/users');
 
-var app = express();
+// 정적 파일 제공을 위한 미들웨어 추가
+app.use(express.static('public'));
 
-// view engine setup
+// views 폴더에서 HTML 파일 렌더링을 위한 설정
 app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'njk');
-nunjucks.configure('views', { 
-  express: app,
-  watch: true,
+app.set('view engine', 'html');
+app.engine('html', require('ejs').renderFile);
+
+app.get('/', (req, res) => {
+  res.render('index');
 });
 
-app.use(logger('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
 
-app.use('/', indexRouter);
-// app.use('/users', usersRouter);
-
-// catch 404 and forward to error handler
-app.use(function(req, res, next) {
-  next(createError(404));
+// MariaDB 연결 정보 설정
+const connection = mysql.createConnection({
+  host: 'host-name',
+  user: 'user-name',
+  password: 'mypassword',
+  database: 'database-name',
 });
 
-// error handler
-app.use(function(err, req, res, next) {
-  // set locals, only providing error in development
-  res.locals.message = err.message;
-  res.locals.error = req.app.get('env') === 'development' ? err : {};
-
-  // render the error page
-  res.status(err.status || 500);
-  res.render('error');
+// 연결 시작
+connection.connect((err) => {
+  if (err) {
+    console.error('Error connecting to MariaDB:', err);
+    return;
+  }
+  console.log('Connected to MariaDB');
 });
 
-module.exports = app;
+// 데이터베이스에 새로운 레코드 추가
+const newData = { name: 'John Doe', age: 25 };
+
+connection.query('INSERT INTO table_name SET ?', newData, (error, results) => {
+  if (error) {
+    console.error('Error inserting data:', error);
+    throw error;
+  }
+  console.log('Inserted ID:', results.insertId);
+});
+
+// 연결 종료
+connection.end((err) => {
+  if (err) {
+    console.error('Error disconnecting from MariaDB:', err);
+    return;
+  }
+  console.log('Disconnected from MariaDB');
+});
+
+
+app.listen(port, () => {
+  console.log(`서버가 http://localhost:${port} 에서 실행 중입니다.`);
+});
